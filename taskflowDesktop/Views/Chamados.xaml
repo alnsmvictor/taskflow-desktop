@@ -1,0 +1,597 @@
+﻿<Window x:Class="taskflowDesktop.Views.Chamados"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        Title="Chamados - TaskFlow" WindowStartupLocation="CenterScreen"
+        WindowState="Maximized" Background="#F5F5F5" WindowStyle="None">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar -->
+        <Border x:Name="Sidebar" Background="#222">
+            <StackPanel>
+                <Button Content="☰" FontSize="18" Foreground="White" Background="Transparent" BorderBrush="{x:Null}" Padding="10" HorizontalAlignment="Left"/>
+                <TextBlock Text="TaskFlow" Foreground="White" FontSize="22" FontWeight="Bold" Margin="20,10,0,30"/>
+                <Button Content="📄 Chamados" Foreground="White" Background="Transparent" BorderBrush="{x:Null}" HorizontalAlignment="Left" Margin="20,5"/>
+                <Button Content="👤 Usuários" Foreground="White" Background="Transparent" BorderBrush="{x:Null}" HorizontalAlignment="Left" Margin="20,5"/>
+                <Button Content="⚙️ Configurações" Foreground="White" Background="Transparent" BorderBrush="{x:Null}" HorizontalAlignment="Left" Margin="20,5"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Conteúdo principal -->
+        <Grid Grid.Column="1" Margin="40,30,40,30">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Topbar -->
+            <DockPanel Grid.Row="0" LastChildFill="False">
+                <Border Width="337" 
+                    Height="57" 
+                    Background="White"
+                    BorderBrush="#DDD"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Margin="0,0,10,0" 
+                    DockPanel.Dock="Left">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Ícone de busca -->
+                        <materialDesign:PackIcon Kind="Magnify" 
+                                    Width="20" 
+                                    Height="20" 
+                                    Foreground="#666" 
+                                    VerticalAlignment="Center"
+                                    Margin="10,0"/>
+
+                        <!-- Campo de texto -->
+                        <TextBox Grid.Column="1"
+                        x:Name="BuscarTextBox"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        materialDesign:HintAssist.Hint="Buscar chamado..."
+                        materialDesign:HintAssist.IsFloating="True"
+                        materialDesign:HintAssist.FloatingScale="0.8"
+                        Padding="5,0,10,0"
+                        VerticalContentAlignment="Center"
+                        FontSize="14"
+                        TextChanged="BuscarTextBox_TextChanged" Margin="0,12,19,13"/>
+                    </Grid>
+                </Border>
+
+                <!-- Ícone de usuário -->
+                <Button Width="90" Height="64" Background="Transparent" BorderBrush="{x:Null}" DockPanel.Dock="Right" Cursor="Hand">
+                    <materialDesign:PackIcon Kind="AccountCircle" Width="58" Height="60" Foreground="#333"/>
+                </Button>
+            </DockPanel>
+
+            <!-- Título -->
+            <Grid Grid.Row="1" Margin="0,20,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="CHAMADOS" FontSize="28" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="1"
+        Content="+ Novo Chamado"
+        Height="40"
+        Background="#2979FF"
+        Foreground="White"
+        Padding="20,8"
+        FontWeight="Bold"
+        HorizontalAlignment="Right"
+        Click="NovoChamado_Click"/>
+            </Grid>
+
+            <!-- Tabs -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10">
+                <Button Content="Todos os Chamados" Background="Transparent" BorderThickness="0" Foreground="#000" FontWeight="Bold" Margin="0,0,20,0"/>
+                <Button Content="Meus Chamados" Background="Transparent" BorderThickness="0" Foreground="#777"/>
+            </StackPanel>
+            <Border Grid.Row="2" Margin="0,30,0,0" BorderBrush="#DDD" BorderThickness="0,0,0,1"/>
+
+            <!-- Linha de filtros -->
+            <Grid Grid.Row="3" Margin="0,20,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="150"/>
+                </Grid.ColumnDefinitions>
+                <!-- Botão remover -->
+                <Button Content="Remover" 
+                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                    Grid.Column="0" 
+                    Margin="0,20,10,4" 
+                    Click="Button_Click_2"
+                    Foreground="#F44336"
+                    BorderBrush="#F44336"/>
+                <!-- Filtro de Status -->
+                <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                    <TextBlock Text="Status" FontWeight="Bold" Foreground="#555" Margin="2,0,0,3"/>
+                    <ComboBox Width="140" Height="33" Style="{StaticResource MaterialDesignOutlinedComboBox}">
+                        <ComboBoxItem Content="Lido"/>
+                        <ComboBoxItem Content="Não lido"/>
+                        <ComboBoxItem Content="Em andamento"/>
+                        <ComboBoxItem Content="Concluído"/>
+                    </ComboBox>
+                </StackPanel>
+                <!-- Filtro de Prioridade -->
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Prioridade" FontWeight="Bold" Foreground="#555" Margin="2,0,0,3"/>
+                    <ComboBox Width="140" Height="33" Style="{StaticResource MaterialDesignOutlinedComboBox}">
+                        <ComboBoxItem Content="Baixa"/>
+                        <ComboBoxItem Content="Média"/>
+                        <ComboBoxItem Content="Alta"/>
+                    </ComboBox>
+                </StackPanel>
+            </Grid>
+
+            <!-- Cabeçalho das colunas -->
+            <Grid Grid.Row="4" Margin="0,10,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="40"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="50"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="" Grid.Column="0"/>
+                <TextBlock Text="Descrição" FontWeight="Bold" Foreground="#333" Grid.Column="1" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="10,0,0,0"/>
+                <TextBlock Text="Aberto por" FontWeight="Bold" Foreground="#333" Grid.Column="2" FontSize="15" VerticalAlignment="Center" TextAlignment="Center"/>
+                <TextBlock Text="Prioridade" FontWeight="Bold" Foreground="#333" Grid.Column="3" FontSize="15" VerticalAlignment="Center" TextAlignment="Center"/>
+                <TextBlock Text="Status" FontWeight="Bold" Foreground="#333" Grid.Column="4" FontSize="15" VerticalAlignment="Center" TextAlignment="Center"/>
+                <TextBlock Text="Responsável" FontWeight="Bold" Foreground="#333" Grid.Column="5" FontSize="15" VerticalAlignment="Center" TextAlignment="Center"/>
+                <TextBlock Text="" Grid.Column="6"/>
+            </Grid>
+
+            <!-- Cards -->
+            <ScrollViewer Grid.Row="5" VerticalScrollBarVisibility="Auto">
+                <StackPanel  x:Name="CardsStackPanel" Orientation="Vertical">
+                    <!-- Card 1 -->
+                    <Border Background="White" CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="50"/>
+                            </Grid.ColumnDefinitions>
+
+                            <CheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0">
+                                <TextBlock Text="Falha ao logar no sistema" FontWeight="Bold" FontSize="15"/>
+                                <TextBlock Text="Setor de TI" FontSize="13" Foreground="#888"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="2" Text="Murilo Coelho" VerticalAlignment="Center" FontSize="14" HorizontalAlignment="Center" TextAlignment="Center"/>
+
+                            <Border Grid.Column="3" Background="#FFEBEE" BorderBrush="#E53935" BorderThickness="1" CornerRadius="5" Padding="8,4" HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="80">
+                                <TextBlock Text="Alta" Foreground="#E53935" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center"/>
+                            </Border>
+
+                            <Border Grid.Column="4" Background="#FFF3E0" BorderBrush="#FB8C00" BorderThickness="1" CornerRadius="5" Padding="8,4" HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="80">
+                                <TextBlock Text="Não lido" Foreground="#FB8C00" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center"/>
+                            </Border>
+
+                            <TextBlock Grid.Column="5" Text="Guilherme Nishikawa" VerticalAlignment="Center" FontSize="14" HorizontalAlignment="Center" TextAlignment="Center"/>
+
+                            <Button Grid.Column="6" Style="{StaticResource MaterialDesignFlatButton}" Foreground="#555" ToolTip="Expandir" HorizontalAlignment="Center">
+                                <materialDesign:PackIcon Kind="ArrowExpand" Width="20" Height="20"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- Card 2 -->
+                    <Border Background="White" CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="50"/>
+                            </Grid.ColumnDefinitions>
+
+                            <CheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0">
+                                <TextBlock Text="Erro ao enviar formulário" FontWeight="Bold" FontSize="15"/>
+                                <TextBlock Text="Atendimento ao Cliente" FontSize="13" Foreground="#888"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="2" Text="Victor Alonso" VerticalAlignment="Center" FontSize="14" HorizontalAlignment="Center" TextAlignment="Center"/>
+
+                            <Border Grid.Column="3" Background="#FFF8E1" BorderBrush="#FB8C00" BorderThickness="1" CornerRadius="5" Padding="8,4" HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="80">
+                                <TextBlock Text="Média" Foreground="#FB8C00" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center"/>
+                            </Border>
+
+                            <Border Grid.Column="4" Background="#E1F5FE" BorderBrush="#0288D1" BorderThickness="1" CornerRadius="5" Padding="8,4" HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="80">
+                                <TextBlock Text="Em andamento" Foreground="#0288D1" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center"/>
+                            </Border>
+
+                            <TextBlock Grid.Column="5" Text="Murilo Coelho" VerticalAlignment="Center" FontSize="14" HorizontalAlignment="Center" TextAlignment="Center"/>
+
+                            <Button Grid.Column="6" Style="{StaticResource MaterialDesignFlatButton}" Foreground="#555" ToolTip="Expandir" HorizontalAlignment="Center">
+                                <materialDesign:PackIcon Kind="ArrowExpand" Width="20" Height="20"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <Grid x:Name="ModalNovoChamado"
+          Background="#AA000000"
+          Visibility="Collapsed"
+          Grid.ColumnSpan="2"
+          HorizontalAlignment="Stretch"
+          VerticalAlignment="Stretch"
+          Panel.ZIndex="10">
+
+            <Border Background="White"
+            CornerRadius="12"
+            Padding="30"
+            Width="800"
+            MaxHeight="800"
+            VerticalAlignment="Center"
+            HorizontalAlignment="Center">
+
+                <StackPanel>
+                    <TextBlock Text="Novo Chamado"
+                       FontSize="26"
+                       FontWeight="Bold"
+                       Margin="0,0,0,25"/>
+
+                    <!-- GRID PRINCIPAL -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <!-- Título e Setor -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Status e Prioridade -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Datas -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Descrição -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Anexo -->
+                        </Grid.RowDefinitions>
+
+                        <!-- Linha 1: Título e Setor -->
+                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,15">
+                            <TextBlock Text="Título" FontWeight="Bold" Foreground="#555"/>
+                            <TextBox x:Name="TituloTextBox"
+                                Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                Margin="0,5,0,0"
+                                Padding="8,6"
+                                MinHeight="44"
+                                materialDesign:HintAssist.Hint="Título do chamado"
+                                FontSize="14"
+                                VerticalContentAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="0" Grid.Column="1" Margin="10,0,0,15">
+                            <TextBlock Text="Setor" FontWeight="Bold" Foreground="#555"/>
+
+                            <ComboBox x:Name="SetorComboBox"
+                                Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                Margin="0,5,0,0"
+                                Padding="8,6"
+                                MinHeight="44"
+                                FontSize="14"
+                                VerticalContentAlignment="Center">
+                                <ComboBoxItem Content="Suporte"/>
+                                <ComboBoxItem Content="Financeiro"/>
+                                <ComboBoxItem Content="TI"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Linha 2: Status e Prioridade -->
+                        <!-- Linha 2: Status e Prioridade -->
+                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,10,15">
+                            <TextBlock Text="Status" FontWeight="Bold" Foreground="#555"/>
+                            <ComboBox x:Name="StatusComboBox"
+              Style="{StaticResource MaterialDesignOutlinedComboBox}"
+              Margin="0,5,0,0"
+              Padding="8,6"
+              MinHeight="44"
+              FontSize="14"
+              VerticalContentAlignment="Center">
+                                <ComboBoxItem Content="Aberto"/>
+                                <ComboBoxItem Content="Em andamento"/>
+                                <ComboBoxItem Content="Concluído"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="10,0,0,15">
+                            <TextBlock Text="Prioridade" FontWeight="Bold" Foreground="#555"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,5,0,0" HorizontalAlignment="Left">
+                                <ToggleButton x:Name="PrioridadeBaixa" Content="Baixa" Width="90" Height="40" Margin="0,0,8,0"
+                      Style="{StaticResource MaterialDesignOutlinedButton}"/>
+                                <ToggleButton x:Name="PrioridadeMedia" Content="Média" Width="90" Height="40" Margin="0,0,8,0"
+                      Style="{StaticResource MaterialDesignOutlinedButton}"/>
+                                <ToggleButton x:Name="PrioridadeAlta" Content="Alta" Width="90" Height="40"
+                      Style="{StaticResource MaterialDesignOutlinedButton}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Linha 3: Datas -->
+                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,10,15">
+                            <TextBlock Text="Data de Abertura" FontWeight="Bold" Foreground="#555"/>
+                            <DatePicker x:Name="DataAberturaPicker"
+                            Margin="0,5,0,0"
+                            Style="{StaticResource MaterialDesignOutlinedDatePicker}"
+                            FontSize="14"
+                            MinHeight="44"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Grid.Column="1" Margin="10,0,0,15">
+                            <TextBlock Text="Data de Finalização" FontWeight="Bold" Foreground="#555"/>
+                            <DatePicker x:Name="DataFechamentoPicker"
+                            Margin="0,5,0,0"
+                            Style="{StaticResource MaterialDesignOutlinedDatePicker}"
+                            FontSize="14"
+                            MinHeight="44"/>
+                        </StackPanel>
+
+                        <!-- Linha 4: Descrição -->
+                        <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Margin="0,10,0,15">
+                            <TextBlock Text="Descrição" FontWeight="Bold" Foreground="#555"/>
+                            <TextBox x:Name="DescricaoTextBox"
+                            AcceptsReturn="True"
+                            TextWrapping="Wrap"
+                            Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                            Margin="0,5,0,0"
+                            Padding="8,6"
+                            FontSize="14"
+                            MinHeight="100"
+                            VerticalScrollBarVisibility="Auto"
+                            materialDesign:HintAssist.Hint="Descreva o problema em detalhes"/>
+                        </StackPanel>
+
+                        <!-- Linha 5: Anexo -->
+                        <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Margin="0,0,0,15">
+                            <TextBlock Text="Anexo (opcional)" FontWeight="Bold" Foreground="#555"/>
+                            <Button Content="Selecionar Imagem..."
+                            Height="44"
+                            Style="{StaticResource MaterialDesignOutlinedButton}"
+                            HorizontalAlignment="Left"
+                            Padding="15,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Botões -->
+                    <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Margin="0,20,0,0">
+                        <Button Content="Cancelar"
+                        Margin="0,0,10,0"
+                        Background="Transparent"
+                        BorderBrush="#999"
+                        Foreground="#555"
+                        Width="100"
+                        Height="40"
+                        Click="FecharModal_Click"/>
+                        <Button Content="Salvar"
+                        Background="#2979FF"
+                        Foreground="White"
+                        Width="100"
+                        Height="38"
+                        Click="SalvarChamado_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="ModalDetalhesChamado"
+      Background="#AA000000"
+      Visibility="Collapsed"
+      Grid.ColumnSpan="2"
+      HorizontalAlignment="Stretch"
+      VerticalAlignment="Stretch"
+      Panel.ZIndex="20">
+
+            <Border Background="White"
+            CornerRadius="12"
+            Padding="30"
+            Width="800"
+            MaxHeight="800"
+            VerticalAlignment="Center"
+            HorizontalAlignment="Center">
+
+                <StackPanel>
+                    <TextBlock Text="Detalhes do Chamado"
+                       FontSize="26"
+                       FontWeight="Bold"
+                       Margin="0,0,0,25"/>
+
+                    <!-- GRID PRINCIPAL -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <!-- Título e Setor -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Status e Prioridade -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Datas -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Descrição -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- ID do Chamado -->
+                        </Grid.RowDefinitions>
+
+                        <!-- Linha 1: Título e Setor -->
+                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,15">
+                            <TextBlock Text="Título" FontWeight="Bold" Foreground="#555"/>
+                            <TextBox x:Name="DetalhesTituloTextBox"
+                            Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                            Margin="0,5,0,0"
+                            Padding="8,6"
+                            MinHeight="44"
+                            FontSize="14"
+                            VerticalContentAlignment="Center"
+                            IsReadOnly="True"
+                            Background="#F5F5F5"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="0" Grid.Column="1" Margin="10,0,0,15">
+                            <TextBlock Text="Setor" FontWeight="Bold" Foreground="#555"/>
+                            <ComboBox x:Name="DetalhesSetorComboBox"
+                            Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                            Margin="0,5,0,0"
+                            Padding="8,6"
+                            MinHeight="44"
+                            FontSize="14"
+                            VerticalContentAlignment="Center"
+                            IsEnabled="False">
+                                <ComboBoxItem Content="Suporte"/>
+                                <ComboBoxItem Content="Financeiro"/>
+                                <ComboBoxItem Content="TI"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Linha 2: Status e Prioridade -->
+                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,10,15">
+                            <TextBlock Text="Status" FontWeight="Bold" Foreground="#555"/>
+                            <ComboBox x:Name="DetalhesStatusComboBox"
+                            Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                            Margin="0,5,0,0"
+                            Padding="8,6"
+                            MinHeight="44"
+                            FontSize="14"
+                            VerticalContentAlignment="Center"
+                            IsEnabled="False">
+                                <ComboBoxItem Content="Aberto"/>
+                                <ComboBoxItem Content="Em andamento"/>
+                                <ComboBoxItem Content="Concluído"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="10,0,0,15">
+                            <TextBlock Text="Prioridade" FontWeight="Bold" Foreground="#555"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,5,0,0" HorizontalAlignment="Left">
+                                <RadioButton x:Name="DetalhesPrioridadeBaixa" Content="Baixa" GroupName="DetalhesPrioridade" Margin="0,0,8,0" IsEnabled="False"/>
+                                <RadioButton x:Name="DetalhesPrioridadeMedia" Content="Média" GroupName="DetalhesPrioridade" Margin="0,0,8,0" IsEnabled="False"/>
+                                <RadioButton x:Name="DetalhesPrioridadeAlta" Content="Alta" GroupName="DetalhesPrioridade" IsEnabled="False"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Linha 3: Datas -->
+                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,10,15">
+                            <TextBlock Text="Data de Abertura" FontWeight="Bold" Foreground="#555"/>
+                            <DatePicker x:Name="DetalhesDataAberturaPicker"
+                            Margin="0,5,0,0"
+                            Style="{StaticResource MaterialDesignOutlinedDatePicker}"
+                            FontSize="14"
+                            MinHeight="44"
+                            IsEnabled="False"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Grid.Column="1" Margin="10,0,0,15">
+                            <TextBlock Text="Data de Finalização" FontWeight="Bold" Foreground="#555"/>
+                            <DatePicker x:Name="DetalhesDataFechamentoPicker"
+                            Margin="0,5,0,0"
+                            Style="{StaticResource MaterialDesignOutlinedDatePicker}"
+                            FontSize="14"
+                            MinHeight="44"
+                            IsEnabled="False"/>
+                        </StackPanel>
+
+                        <!-- Linha 4: Descrição -->
+                        <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Margin="0,10,0,15">
+                            <TextBlock Text="Descrição" FontWeight="Bold" Foreground="#555"/>
+                            <TextBox x:Name="DetalhesDescricaoTextBox"
+                            AcceptsReturn="True"
+                            TextWrapping="Wrap"
+                            Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                            Margin="0,5,0,0"
+                            Padding="8,6"
+                            FontSize="14"
+                            MinHeight="100"
+                            VerticalScrollBarVisibility="Auto"
+                            IsReadOnly="True"
+                            Background="#F5F5F5"/>
+                        </StackPanel>
+
+                        <!-- Linha 5: ID do Chamado e Cliente -->
+                        <StackPanel Grid.Row="4" Grid.Column="0" Margin="0,0,10,0">
+                            <TextBlock Text="ID do Chamado" FontWeight="Bold" Foreground="#555"/>
+                            <TextBox x:Name="DetalhesIdChamadoTextBox"
+                            Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                            Margin="0,5,0,0"
+                            Padding="8,6"
+                            MinHeight="44"
+                            FontSize="14"
+                            VerticalContentAlignment="Center"
+                            IsReadOnly="True"
+                            Background="#F5F5F5"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="4" Grid.Column="1" Margin="10,0,0,0">
+                            <TextBlock Text="Aberto por" FontWeight="Bold" Foreground="#555"/>
+                            <TextBox x:Name="DetalhesClienteTextBox"
+                            Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                            Margin="0,5,0,0"
+                            Padding="8,6"
+                            MinHeight="44"
+                            FontSize="14"
+                            VerticalContentAlignment="Center"
+                            IsReadOnly="True"
+                            Background="#F5F5F5"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Botões -->
+                    <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,20,0,0">
+                        <Button Content="Fechar"
+                        Margin="0,0,10,0"
+                        Background="Transparent"
+                        BorderBrush="#999"
+                        Foreground="#555"
+                        Width="100"
+                        Height="40"
+                        Click="FecharModalDetalhes_Click"/>
+                        <Button Content="Editar"
+                        Background="#2979FF"
+                        Foreground="White"
+                        Width="100"
+                        Height="38"
+                        Click="EditarChamado_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

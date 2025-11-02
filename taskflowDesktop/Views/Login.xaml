@@ -1,0 +1,93 @@
+﻿<Window x:Class="taskflowDesktop.Views.Login"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        Title="Login"
+        Height="720" Width="1080"
+        FontFamily="pack://application:,,,/Resources/#Poppins"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="True">
+
+    <!-- Gradiente de fundo -->
+    <Window.Background>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#333333" Offset="1.0"/>
+            <GradientStop Color="#CCCCCC" Offset="0.0"/>
+        </LinearGradientBrush>
+    </Window.Background>
+
+    <Border Background="White" CornerRadius="20" Padding="20" Margin="40">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- LADO ESQUERDO - LOGO -->
+            <Grid Grid.Column="0" Background="White">
+                <Image Source="/Resources/LogoLogin1.png"
+                       Stretch="Uniform"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Height="460" Width="460"/>
+            </Grid>
+
+            <!-- LADO DIREITO - CAMPOS DE LOGIN -->
+            <Grid Grid.Column="1" Margin="0,-65,0,65">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Width="400" Margin="0,218,0,0">
+
+                    <TextBlock Text="Bem-vindo" 
+                               FontSize="38" 
+                               FontWeight="Bold" 
+                               Foreground="Black" 
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,40"/>
+
+                    <!-- Email -->
+                    <Border Background="White" CornerRadius="10" BorderBrush="Gray" BorderThickness="2" Padding="10" Margin="0,0,0,40">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Image Source="/Resources/emailIcon.png" Width="20" Height="20" VerticalAlignment="Center"/>
+                            <TextBox x:Name="EmailTextBox" Grid.Column="1" BorderThickness="0" VerticalContentAlignment="Center" 
+                                FontSize="14" Foreground="Black" Margin="19,0,0,0" materialDesign:HintAssist.Hint="Insira aqui seu e-mail"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Senha -->
+                    <Border Background="White" CornerRadius="10" BorderBrush="Gray" BorderThickness="2" Padding="10" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Image Source="/Resources/passwordIcon.png" Width="20" Height="20" VerticalAlignment="Center"/>
+                            <PasswordBox x:Name="SenhaPasswordBox" Grid.Column="1" BorderThickness="0" VerticalContentAlignment="Center" 
+                                         FontSize="14" Foreground="Black" Margin="10,0,4,0" materialDesign:HintAssist.Hint="Insira aqui sua senha"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Esqueci minha senha -->
+                    <TextBlock Text="Esqueci minha senha" Foreground="Gray" 
+                      HorizontalAlignment="Right" FontSize="14" Cursor="Hand" Margin="0,0,0,20"/>
+
+                    <!-- Botão Entrar -->
+                    <Button Content="Entrar" Background="Black" Foreground="White" FontSize="16" 
+                            Height="45" BorderThickness="0"  Cursor="Hand"   Click="LoginButton_Click"/>
+
+                    <!-- Abrir cadastro -->
+                    <Button Content="Não tem uma conta? Cadastrar" Foreground="Black" Background="Transparent"
+                        HorizontalAlignment="Center" FontSize="12" Cursor="Hand" Margin="0,20,0,0" 
+                        Click="abrirCadastro"
+                        BorderThickness="0"
+                        BorderBrush="Transparent"
+                        Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}"/>
+                </StackPanel>
+            </Grid>
+
+        </Grid>
+    </Border>
+</Window>
