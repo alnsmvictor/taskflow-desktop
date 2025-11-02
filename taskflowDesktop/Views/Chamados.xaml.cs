@@ -7,23 +7,97 @@ using System.Windows.Media;
 using MySql.Data.MySqlClient;
 using taskflowDesktop.Models;
 using System.Windows.Controls.Primitives;
+using System.Linq;
 
 
 namespace taskflowDesktop.Views
 {
     public partial class Chamados : Window
     {
+        private string _filtroStatus = "Todos";
+        private string _filtroPrioridade = "Todas";
+        private string _termoBusca = "";
+        private string _usuarioLogado;
         private List<Chamado> _chamadosSelecionados = new List<Chamado>();
         private List<Chamado> chamados = new List<Chamado>();
-        private string PrioridadeSelecionada = "Média"; // Valor padrão
-
-        public Chamados()
+        private string PrioridadeSelecionada = "Média";
+        private bool _mostrarApenasMeusChamados = false;
+        private string _perfilUsuario;
+        private int _idUsuarioLogado;
+        private Chamado _chamadoEmEdicao;
+        private bool _modoEdicao = false;
+        public Chamados(string usuarioLogado, int idUsuarioLogado, string perfilUsuario)
         {
             InitializeComponent();
-            CarregarTickets();
-            ConfigurarModal();
-        }
+            _usuarioLogado = usuarioLogado;
+            _idUsuarioLogado = idUsuarioLogado;
+            _perfilUsuario = perfilUsuario;
 
+            // Aguarda o carregamento completo
+            this.Loaded += (s, e) =>
+            {
+                InitializeFiltros();
+                ConfigurarModal();
+                ConfigurarPermissoes();
+                CarregarTickets();
+
+                // Opcional: Mostrar o nome do usuário logado em algum lugar
+                Console.WriteLine($"Usuário logado: {_usuarioLogado} (ID: {_idUsuarioLogado})");
+            };
+        }
+        private void ConfigurarPermissoes()
+        {
+            // Todos os perfis podem ver ambas as tabs
+            BtnTodosChamados.Visibility = Visibility.Visible;
+            BtnMeusChamados.Visibility = Visibility.Visible;
+
+            // Não força mostrar apenas os próprios chamados para usuários comuns
+            _mostrarApenasMeusChamados = false;
+
+            // Atualiza o estilo das tabs
+            AtualizarEstiloTabs();
+
+            Console.WriteLine($"Usuário logado: {_usuarioLogado} (Perfil: {_perfilUsuario})");
+
+            // Debug para verificar o perfil
+            Console.WriteLine($"Perfil em lowercase: {_perfilUsuario?.ToLower()}");
+        }
+        private void InitializeFiltros()
+        {
+            // Configura os valores iniciais explicitamente
+            FiltroStatusComboBox.SelectedValue = "Todos";
+            FiltroPrioridadeComboBox.SelectedValue = "Todas";
+
+            // Atualiza as variáveis de filtro
+            _filtroStatus = "Todos";
+            _filtroPrioridade = "Todas";
+
+            // Força a renderização
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                FiltroStatusComboBox.ApplyTemplate();
+                FiltroPrioridadeComboBox.ApplyTemplate();
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+        private void LimparFiltros_Click(object sender, RoutedEventArgs e)
+        {
+            // Limpa a busca
+            BuscarTextBox.Text = "";
+            _termoBusca = "";
+
+            // Reseta os comboboxs
+            FiltroStatusComboBox.SelectedValue = "Todos";
+            FiltroPrioridadeComboBox.SelectedValue = "Todas";
+
+            // Volta para "Todos os Chamados"
+            _mostrarApenasMeusChamados = false;
+            AtualizarEstiloTabs();
+
+            // Aplica os filtros
+            AplicarFiltros();
+
+            MessageBox.Show("Filtros limpos!", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
         private void ConfigurarModal()
         {
             // Configura valores padrão para o modal
@@ -31,8 +105,292 @@ namespace taskflowDesktop.Views
             SetorComboBox.SelectedIndex = 0;
             StatusComboBox.SelectedIndex = 0;
         }
-
         private void CarregarTickets()
+        {
+            try
+            {
+                Console.WriteLine("DEBUG: Iniciando CarregarTickets...");
+
+                string connStr = ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
+                Console.WriteLine($"DEBUG: String de conexão: {connStr}");
+
+                using (MySqlConnection conn = new MySqlConnection(connStr))
+                {
+                    conn.Open();
+                    Console.WriteLine("DEBUG: Conexão com banco aberta");
+
+                    CarregarSetores(conn);
+
+                    string query = @"
+                SELECT 
+                    ID_CHAMADO,
+                    Nome_Cliente,
+                    Titulo,
+                    Descricao,
+                    ChamadoStatus,
+                    Data_Abertura,
+                    Data_Fechamento,
+                    Prioridade,
+                    ID_CLIENTE,
+                    ID_SETOR,
+                    Tecnico
+                FROM CHAMADOS
+                ORDER BY Data_Abertura DESC";
+
+                    Console.WriteLine("DEBUG: Executando query...");
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            Console.WriteLine("DEBUG: Reader executado");
+                            chamados.Clear();
+
+                            int count = 0;
+                            while (reader.Read())
+                            {
+                                count++;
+                                try
+                                {
+                                    var chamado = new Chamado();
+
+                                    // DEBUG: Verificar cada campo individualmente
+                                    Console.WriteLine($"DEBUG: Processando registro {count}");
+
+                                    // ID_CHAMADO
+                                    if (!reader.IsDBNull(reader.GetOrdinal("ID_CHAMADO")))
+                                    {
+                                        chamado.IdTicket = reader.GetInt32("ID_CHAMADO");
+                                        Console.WriteLine($"DEBUG: ID_CHAMADO: {chamado.IdTicket}");
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("DEBUG: ID_CHAMADO é NULL, pulando registro");
+                                        continue;
+                                    }
+
+                                    // Titulo - DEBUG DETALHADO
+                                    int tituloIndex = reader.GetOrdinal("Titulo");
+                                    if (!reader.IsDBNull(tituloIndex))
+                                    {
+                                        chamado.Titulo = reader.GetString(tituloIndex);
+                                        Console.WriteLine($"DEBUG: Titulo: '{chamado.Titulo}'");
+                                    }
+                                    else
+                                    {
+                                        chamado.Titulo = "Sem título";
+                                        Console.WriteLine("DEBUG: Titulo é NULL, usando valor padrão");
+                                    }
+
+                                    // Nome_Cliente
+                                    if (!reader.IsDBNull(reader.GetOrdinal("Nome_Cliente")))
+                                    {
+                                        chamado.NomeCliente = reader.GetString("Nome_Cliente");
+                                        Console.WriteLine($"DEBUG: Nome_Cliente: '{chamado.NomeCliente}'");
+                                    }
+                                    else
+                                    {
+                                        chamado.NomeCliente = "Sem nome";
+                                        Console.WriteLine("DEBUG: Nome_Cliente é NULL, usando valor padrão");
+                                    }
+
+                                    // Descricao
+                                    if (!reader.IsDBNull(reader.GetOrdinal("Descricao")))
+                                    {
+                                        chamado.Descricao = reader.GetString("Descricao");
+                                        Console.WriteLine($"DEBUG: Descricao: '{chamado.Descricao}'");
+                                    }
+                                    else
+                                    {
+                                        chamado.Descricao = "Sem descrição";
+                                        Console.WriteLine("DEBUG: Descricao é NULL, usando valor padrão");
+                                    }
+
+                                    // ChamadoStatus
+                                    if (!reader.IsDBNull(reader.GetOrdinal("ChamadoStatus")))
+                                    {
+                                        chamado.TicketStatus = reader.GetString("ChamadoStatus");
+                                        Console.WriteLine($"DEBUG: ChamadoStatus: '{chamado.TicketStatus}'");
+                                    }
+                                    else
+                                    {
+                                        chamado.TicketStatus = "Aberto";
+                                        Console.WriteLine("DEBUG: ChamadoStatus é NULL, usando valor padrão");
+                                    }
+
+                                    // Data_Abertura
+                                    if (!reader.IsDBNull(reader.GetOrdinal("Data_Abertura")))
+                                    {
+                                        chamado.DataAbertura = reader.GetDateTime("Data_Abertura");
+                                        Console.WriteLine($"DEBUG: Data_Abertura: {chamado.DataAbertura}");
+                                    }
+                                    else
+                                    {
+                                        chamado.DataAbertura = DateTime.Now;
+                                        Console.WriteLine("DEBUG: Data_Abertura é NULL, usando valor padrão");
+                                    }
+
+                                    // Data_Fechamento (pode ser nulo)
+                                    if (!reader.IsDBNull(reader.GetOrdinal("Data_Fechamento")))
+                                    {
+                                        chamado.DataFechamento = reader.GetDateTime("Data_Fechamento");
+                                        Console.WriteLine($"DEBUG: Data_Fechamento: {chamado.DataFechamento}");
+                                    }
+
+                                    // Prioridade
+                                    if (!reader.IsDBNull(reader.GetOrdinal("Prioridade")))
+                                    {
+                                        chamado.Prioridade = reader.GetString("Prioridade");
+                                        Console.WriteLine($"DEBUG: Prioridade: '{chamado.Prioridade}'");
+                                    }
+                                    else
+                                    {
+                                        chamado.Prioridade = "Média";
+                                        Console.WriteLine("DEBUG: Prioridade é NULL, usando valor padrão");
+                                    }
+
+                                    // ID_CLIENTE
+                                    if (!reader.IsDBNull(reader.GetOrdinal("ID_CLIENTE")))
+                                    {
+                                        chamado.IdCliente = reader.GetInt32("ID_CLIENTE");
+                                        Console.WriteLine($"DEBUG: ID_CLIENTE: {chamado.IdCliente}");
+                                    }
+                                    else
+                                    {
+                                        chamado.IdCliente = 0;
+                                        Console.WriteLine("DEBUG: ID_CLIENTE é NULL, usando valor padrão");
+                                    }
+
+                                    // ID_SETOR
+                                    if (!reader.IsDBNull(reader.GetOrdinal("ID_SETOR")))
+                                    {
+                                        chamado.IdSetor = reader.GetInt32("ID_SETOR");
+                                        Console.WriteLine($"DEBUG: ID_SETOR: {chamado.IdSetor}");
+                                    }
+                                    else
+                                    {
+                                        chamado.IdSetor = 0;
+                                        Console.WriteLine("DEBUG: ID_SETOR é NULL, usando valor padrão");
+                                    }
+
+                                    // Tecnico
+                                    if (!reader.IsDBNull(reader.GetOrdinal("Tecnico")))
+                                    {
+                                        chamado.Tecnico = reader.GetString("Tecnico");
+                                        Console.WriteLine($"DEBUG: Tecnico: '{chamado.Tecnico}'");
+                                    }
+                                    else
+                                    {
+                                        chamado.Tecnico = "A definir";
+                                        Console.WriteLine("DEBUG: Tecnico é NULL, usando valor padrão");
+                                    }
+
+                                    // Campo calculado
+                                    chamado.NomeSetor = ObterNomeSetor(chamado.IdSetor);
+                                    Console.WriteLine($"DEBUG: NomeSetor: '{chamado.NomeSetor}'");
+
+                                    chamados.Add(chamado);
+                                    Console.WriteLine($"DEBUG: Chamado {count} adicionado à lista");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"DEBUG: ERRO ao processar registro {count}: {ex.Message}");
+                                    Console.WriteLine($"DEBUG: StackTrace: {ex.StackTrace}");
+                                    continue;
+                                }
+                            }
+
+                            Console.WriteLine($"DEBUG: Total de chamados carregados: {chamados.Count}");
+                        }
+                    }
+                }
+
+                Console.WriteLine("DEBUG: Chamando AplicarFiltros...");
+                AtualizarEstiloTabs();
+                AplicarFiltros();
+
+                if (chamados.Count == 0)
+                {
+                    Console.WriteLine("DEBUG: Nenhum chamado encontrado no banco");
+                    MessageBox.Show("Nenhum chamado encontrado no banco de dados.", "Informação", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    Console.WriteLine($"DEBUG: {chamados.Count} chamados processados com sucesso");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"DEBUG: ERRO em CarregarTickets: {ex.Message}");
+                Console.WriteLine($"DEBUG: StackTrace: {ex.StackTrace}");
+                MessageBox.Show($"Erro ao carregar chamados: {ex.Message}\n\nDetalhes: {ex.StackTrace}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        private void CarregarSetores(MySqlConnection conn)
+        {
+            try
+            {
+                SetorComboBox.Items.Clear();
+                DetalhesSetorComboBox.Items.Clear();
+
+                string query = "SELECT ID_SETOR, Nome FROM SETORES ORDER BY Nome";
+
+                using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                {
+                    using (MySqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            int idSetor = reader.GetInt32("ID_SETOR");
+                            string nomeSetor = reader.GetString("Nome");
+
+                            // Garante que o Tag está sendo setado corretamente
+                            var itemNovo = new ComboBoxItem
+                            {
+                                Content = nomeSetor,
+                                Tag = idSetor // IMPORTANTE: Tag com o ID correto
+                            };
+                            SetorComboBox.Items.Add(itemNovo);
+
+                            var itemDetalhes = new ComboBoxItem
+                            {
+                                Content = nomeSetor,
+                                Tag = idSetor // IMPORTANTE: Tag com o ID correto
+                            };
+                            DetalhesSetorComboBox.Items.Add(itemDetalhes);
+                        }
+                    }
+                }
+
+                // Seleciona o primeiro item se existir
+                if (SetorComboBox.Items.Count > 0)
+                    SetorComboBox.SelectedIndex = 0;
+
+                if (DetalhesSetorComboBox.Items.Count > 0)
+                    DetalhesSetorComboBox.SelectedIndex = 0;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erro ao carregar setores: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                AdicionarSetoresPadrao();
+            }
+        }
+        private void AdicionarSetoresPadrao()
+        {
+            string[] setoresPadrao = { "Suporte", "Financeiro", "TI" };
+
+            foreach (string setor in setoresPadrao)
+            {
+                SetorComboBox.Items.Add(new ComboBoxItem { Content = setor });
+                DetalhesSetorComboBox.Items.Add(new ComboBoxItem { Content = setor });
+            }
+
+            if (SetorComboBox.Items.Count > 0)
+                SetorComboBox.SelectedIndex = 0;
+
+            if (DetalhesSetorComboBox.Items.Count > 0)
+                DetalhesSetorComboBox.SelectedIndex = 0;
+        }
+        private string ObterNomeSetor(int idSetor)
         {
             try
             {
@@ -41,161 +399,77 @@ namespace taskflowDesktop.Views
                 using (MySqlConnection conn = new MySqlConnection(connStr))
                 {
                     conn.Open();
-
-                    string query = @"
-                        SELECT 
-                            ID_CHAMADO,
-                            Nome_Cliente,
-                            Titulo,
-                            Descricao,
-                            ChamadoStatus,
-                            Data_Abertura,
-                            Data_Fechamento,
-                            Prioridade,
-                            ID_CLIENTE,
-                            ID_SETOR,
-                            Tecnico
-                        FROM CHAMADOS
-                        ORDER BY Data_Abertura DESC";
+                    string query = "SELECT Nome FROM SETORES WHERE ID_SETOR = @IdSetor";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
-                        using (MySqlDataReader reader = cmd.ExecuteReader())
-                        {
-                            chamados.Clear();
-
-                            while (reader.Read())
-                            {
-                                try
-                                {
-                                    var chamado = new Chamado();
-
-                                    // ID_CHAMADO - deve ser obrigatório
-                                    if (!reader.IsDBNull(reader.GetOrdinal("ID_CHAMADO")))
-                                        chamado.IdTicket = reader.GetInt32("ID_CHAMADO");
-                                    else
-                                        continue; // Pula registros sem ID
-
-                                    // Titulo
-                                    if (!reader.IsDBNull(reader.GetOrdinal("Titulo")))
-                                        chamado.Titulo = reader.GetString("Titulo");
-                                    else
-                                        chamado.Titulo = "Sem título";
-
-                                    if (!reader.IsDBNull(reader.GetOrdinal("Nome_Cliente")))
-                                        chamado.NomeCliente = reader.GetString("Nome_Cliente");
-                                    else
-                                        chamado.NomeCliente = "Sem título";
-
-                                    // Descricao
-                                    if (!reader.IsDBNull(reader.GetOrdinal("Descricao")))
-                                        chamado.Descricao = reader.GetString("Descricao");
-                                    else
-                                        chamado.Descricao = "Sem descrição";
-
-                                    // ChamadoStatus
-                                    if (!reader.IsDBNull(reader.GetOrdinal("ChamadoStatus")))
-                                        chamado.TicketStatus = reader.GetString("ChamadoStatus");
-                                    else
-                                        chamado.TicketStatus = "Aberto";
-
-                                    // Data_Abertura
-                                    if (!reader.IsDBNull(reader.GetOrdinal("Data_Abertura")))
-                                        chamado.DataAbertura = reader.GetDateTime("Data_Abertura");
-                                    else
-                                        chamado.DataAbertura = DateTime.Now;
-
-                                    // Data_Fechamento (pode ser nulo)
-                                    if (!reader.IsDBNull(reader.GetOrdinal("Data_Fechamento")))
-                                        chamado.DataFechamento = reader.GetDateTime("Data_Fechamento");
-
-                                    // Prioridade
-                                    if (!reader.IsDBNull(reader.GetOrdinal("Prioridade")))
-                                        chamado.Prioridade = reader.GetString("Prioridade");
-                                    else
-                                        chamado.Prioridade = "Média";
-
-                                    // ID_CLIENTE
-                                    if (!reader.IsDBNull(reader.GetOrdinal("ID_CLIENTE")))
-                                        chamado.IdCliente = reader.GetInt32("ID_CLIENTE");
-                                    else
-                                        chamado.IdCliente = 0;
-
-                                    // ID_SETOR
-                                    if (!reader.IsDBNull(reader.GetOrdinal("ID_SETOR")))
-                                        chamado.IdSetor = reader.GetInt32("ID_SETOR");
-                                    else
-                                        chamado.IdSetor = 0;
-
-                                    // Tecnico
-                                    if (!reader.IsDBNull(reader.GetOrdinal("Tecnico")))
-                                        chamado.Tecnico = reader.GetString("Tecnico");
-                                    else
-                                        chamado.Tecnico = "A definir";
-
-                                    // Campos calculados
-                                    //chamado.NomeCliente = $"Cliente {chamado.IdCliente}";
-                                    chamado.NomeSetor = ObterNomeSetor(chamado.IdSetor);
-
-                                    chamados.Add(chamado);
-                                }
-                                catch (Exception ex)
-                                {
-                                    // Log do erro mas continua processando outros registros
-                                    Console.WriteLine($"Erro ao processar registro: {ex.Message}");
-                                    continue;
-                                }
-                            }
-                        }
+                        cmd.Parameters.AddWithValue("@IdSetor", idSetor);
+                        var result = cmd.ExecuteScalar();
+                        return result?.ToString() ?? $"Setor {idSetor}";
                     }
-                }
-
-                PreencherCards();
-
-                if (chamados.Count == 0)
-                {
-                    MessageBox.Show("Nenhum chamado encontrado no banco de dados.", "Informação", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Erro ao carregar chamados: {ex.Message}\n\nDetalhes: {ex.StackTrace}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                Console.WriteLine($"Erro ao obter nome do setor: {ex.Message}");
+                return $"Setor {idSetor}";
             }
         }
-
-        private string ObterNomeSetor(int idSetor)
-        {
-            return idSetor switch
-            {
-                1 => "Suporte",
-                2 => "Financeiro",
-                3 => "TI",
-                _ => $"Setor {idSetor}"
-            };
-        }
-
         private int ObterIdSetor(string nomeSetor)
         {
-            return nomeSetor.ToLower() switch
+            try
             {
-                "suporte" => 1,
-                "financeiro" => 2,
-                "ti" => 3,
-                _ => 1 // Default para Suporte
-            };
-        }
+                string connStr = ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
 
-        private void PreencherCards()
-        {
-            CardsStackPanel.Children.Clear();
+                using (MySqlConnection conn = new MySqlConnection(connStr))
+                {
+                    conn.Open();
+                    string query = "SELECT ID_SETOR FROM SETORES WHERE Nome = @NomeSetor";
 
-            foreach (var chamado in chamados)
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@NomeSetor", nomeSetor);
+                        var result = cmd.ExecuteScalar();
+
+                        if (result != null && result != DBNull.Value)
+                        {
+                            return Convert.ToInt32(result);
+                        }
+                    }
+                }
+
+                // Fallback: retorna o primeiro setor disponível
+                return ObterPrimeiroSetorDisponivel();
+            }
+            catch (Exception ex)
             {
-                var card = CriarCard(chamado);
-                CardsStackPanel.Children.Add(card);
+                Console.WriteLine($"Erro ao obter ID do setor: {ex.Message}");
+                return ObterPrimeiroSetorDisponivel();
             }
         }
+        private int ObterPrimeiroSetorDisponivel()
+        {
+            try
+            {
+                string connStr = ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
 
+                using (MySqlConnection conn = new MySqlConnection(connStr))
+                {
+                    conn.Open();
+                    string query = "SELECT ID_SETOR FROM SETORES ORDER BY ID_SETOR LIMIT 1";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        return result != null ? Convert.ToInt32(result) : 1;
+                    }
+                }
+            }
+            catch
+            {
+                return 1;
+            }
+        }
         private Border CriarCard(Chamado chamado)
         {
             var card = new Border
@@ -294,7 +568,6 @@ namespace taskflowDesktop.Views
             card.Child = grid;
             return card;
         }
-
         private Border CriarBadgePrioridade(string prioridade)
         {
             var border = new Border
@@ -338,7 +611,6 @@ namespace taskflowDesktop.Views
             border.Child = text;
             return border;
         }
-
         private Border CriarBadgeStatus(string status)
         {
             var border = new Border
@@ -387,12 +659,10 @@ namespace taskflowDesktop.Views
             border.Child = text;
             return border;
         }
-
         private void Button_Click_2(object sender, RoutedEventArgs e)
         {
             RemoverChamadosSelecionados();
         }
-
         private void RemoverChamadosSelecionados()
         {
             try
@@ -426,7 +696,6 @@ namespace taskflowDesktop.Views
                               MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
         private List<Chamado> ObterChamadosSelecionados()
         {
             var selecionados = new List<Chamado>();
@@ -447,7 +716,6 @@ namespace taskflowDesktop.Views
 
             return selecionados;
         }
-
         private CheckBox EncontrarCheckBoxNoCard(Border card)
         {
             if (card.Child is Grid grid)
@@ -460,7 +728,6 @@ namespace taskflowDesktop.Views
             }
             return null;
         }
-
         private Chamado ObterChamadoDoCard(Border card)
         {
             if (card.Child is Grid grid)
@@ -485,7 +752,6 @@ namespace taskflowDesktop.Views
             }
             return null;
         }
-
         private void RemoverChamadosDoBanco(List<Chamado> chamadosParaRemover)
         {
             try
@@ -520,26 +786,6 @@ namespace taskflowDesktop.Views
                               MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
-        // Método para selecionar/deselecionar todos (opcional - adicione um CheckBox no cabeçalho)
-        private void CheckBoxSelecionarTodos_Changed(object sender, RoutedEventArgs e)
-        {
-            if (sender is CheckBox checkBox)
-            {
-                bool isChecked = checkBox.IsChecked == true;
-
-                foreach (var child in CardsStackPanel.Children)
-                {
-                    if (child is Border card)
-                    {
-                        var cardCheckBox = EncontrarCheckBoxNoCard(card);
-                        if (cardCheckBox != null)
-                            cardCheckBox.IsChecked = isChecked;
-                    }
-                }
-            }
-        }
-
         private void NovoChamado_Click(object sender, RoutedEventArgs e)
         {
             // Limpa os campos ao abrir o modal
@@ -556,7 +802,6 @@ namespace taskflowDesktop.Views
 
             ModalNovoChamado.Visibility = Visibility.Visible;
         }
-
         private void ConfigurarBotoesPrioridade()
         {
             // Encontra os botões de prioridade no modal
@@ -593,8 +838,6 @@ namespace taskflowDesktop.Views
                 }
             }
         }
-
-        // Método auxiliar para encontrar controles filhos
         public static IEnumerable<T> FindVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
         {
             if (depObj != null)
@@ -614,21 +857,30 @@ namespace taskflowDesktop.Views
                 }
             }
         }
-
         private void FecharModal_Click(object sender, RoutedEventArgs e)
         {
             ModalNovoChamado.Visibility = Visibility.Collapsed;
         }
-
         private void SalvarChamado_Click(object sender, RoutedEventArgs e)
         {
             try
             {
                 string titulo = TituloTextBox.Text.Trim();
                 string descricao = DescricaoTextBox.Text.Trim();
-                string setor = (SetorComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString();
+
+                // Obtém o setor selecionado do ComboBox
+                if (SetorComboBox.SelectedItem is not ComboBoxItem selectedSetor)
+                {
+                    MessageBox.Show("Selecione um setor.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                string nomeSetor = selectedSetor.Content.ToString();
+                int idSetor = selectedSetor.Tag != null ? (int)selectedSetor.Tag : ObterIdSetor(nomeSetor);
+
                 string status = (StatusComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString();
-                string nomeClienteFixo = "Murilo Coelho";
+                string nomeCliente = _usuarioLogado;
+
                 DateTime dataAbertura = DataAberturaPicker.SelectedDate ?? DateTime.Now;
                 DateTime? dataFechamento = DataFechamentoPicker.SelectedDate;
 
@@ -639,38 +891,37 @@ namespace taskflowDesktop.Views
                     return;
                 }
 
-                if (SetorComboBox.SelectedItem == null)
-                {
-                    MessageBox.Show("Selecione um setor.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
                 string connStr = ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
 
                 using (MySqlConnection conn = new MySqlConnection(connStr))
                 {
                     conn.Open();
 
-                    // Verifica e cria dados necessários se não existirem
-                    VerificarECriarDadosNecessarios(conn);
+                    // Se for técnico ou admin, pode atribuir a si mesmo como técnico
+                    string tecnico = "A definir";
+                    if (_perfilUsuario.ToLower() == "técnico" || _perfilUsuario.ToLower() == "admin")
+                    {
+                        tecnico = _usuarioLogado;
+                    }
 
                     // Insere o chamado
                     string insertQuery = @"
-                    INSERT INTO CHAMADOS 
-                    (Titulo, Nome_Cliente, Descricao, ChamadoStatus, Data_Abertura, Data_Fechamento, Prioridade, ID_CLIENTE, ID_SETOR)
-                    VALUES (@Titulo, @NomeCliente, @Descricao, @ChamadoStatus, @DataAbertura, @DataFechamento, @Prioridade, @IdCliente, @IdSetor)";
+                INSERT INTO CHAMADOS 
+                (Titulo, Nome_Cliente, Descricao, ChamadoStatus, Data_Abertura, Data_Fechamento, Prioridade, ID_CLIENTE, ID_SETOR, Tecnico)
+                VALUES (@Titulo, @NomeCliente, @Descricao, @ChamadoStatus, @DataAbertura, @DataFechamento, @Prioridade, @IdCliente, @IdSetor, @Tecnico)";
 
                     using (MySqlCommand cmd = new MySqlCommand(insertQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@Titulo", titulo);
-                        cmd.Parameters.AddWithValue("@NomeCliente", nomeClienteFixo);
+                        cmd.Parameters.AddWithValue("@NomeCliente", nomeCliente);
                         cmd.Parameters.AddWithValue("@Descricao", string.IsNullOrEmpty(descricao) ? "Sem descrição" : descricao);
                         cmd.Parameters.AddWithValue("@ChamadoStatus", status ?? "Aberto");
                         cmd.Parameters.AddWithValue("@DataAbertura", dataAbertura);
                         cmd.Parameters.AddWithValue("@DataFechamento", dataFechamento.HasValue ? (object)dataFechamento.Value : DBNull.Value);
                         cmd.Parameters.AddWithValue("@Prioridade", PrioridadeSelecionada ?? "Média");
-                        cmd.Parameters.AddWithValue("@IdCliente", 1); // Cliente padrão
-                        cmd.Parameters.AddWithValue("@IdSetor", ObterIdSetor(setor));
+                        cmd.Parameters.AddWithValue("@IdCliente", _idUsuarioLogado);
+                        cmd.Parameters.AddWithValue("@IdSetor", idSetor);
+                        cmd.Parameters.AddWithValue("@Tecnico", tecnico);
 
                         int resultado = cmd.ExecuteNonQuery();
 
@@ -678,7 +929,7 @@ namespace taskflowDesktop.Views
                         {
                             MessageBox.Show("Chamado salvo com sucesso!", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
                             ModalNovoChamado.Visibility = Visibility.Collapsed;
-                            CarregarTickets(); // Recarrega a listagem
+                            CarregarTickets();
                         }
                     }
                 }
@@ -688,22 +939,172 @@ namespace taskflowDesktop.Views
                 MessageBox.Show($"Erro ao salvar chamado: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
-        private void ExpandirTicket(Chamado chamado)
+        private string ObterPrioridadeSelecionada()
         {
-            // Em vez do MessageBox, abre o modal personalizado
-            AbrirModalDetalhes(chamado);
+            if (DetalhesPrioridadeAlta.IsChecked == true)
+                return "Alta";
+            else if (DetalhesPrioridadeBaixa.IsChecked == true)
+                return "Baixa";
+            else
+                return "Média"; // Padrão
         }
-
-        private void AbrirModalDetalhes(Chamado chamado)
+        private void FecharModalDetalhes_Click(object sender, RoutedEventArgs e)
+        {
+            ModalDetalhesChamado.Visibility = Visibility.Collapsed;
+            _chamadoEmEdicao = null;
+            _modoEdicao = false;
+        }
+        private void SalvarEdicaoChamado_Click(object sender, RoutedEventArgs e)
         {
             try
             {
+                // Validações básicas
+                if (string.IsNullOrEmpty(DetalhesTituloTextBox.Text.Trim()))
+                {
+                    MessageBox.Show("O título é obrigatório.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Obtém o setor selecionado
+                if (DetalhesSetorComboBox.SelectedItem is not ComboBoxItem selectedSetor)
+                {
+                    MessageBox.Show("Selecione um setor válido.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                string nomeSetor = selectedSetor.Content.ToString();
+                int idSetor = selectedSetor.Tag != null ? (int)selectedSetor.Tag : ObterIdSetor(nomeSetor);
+
+                // VALIDAÇÃO CRÍTICA: Verifica se o setor existe
+                if (!SetorExiste(idSetor))
+                {
+                    MessageBox.Show("Setor selecionado não existe. Por favor, selecione um setor válido.", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                // Resto do código de atualização...
+                string titulo = DetalhesTituloTextBox.Text.Trim();
+                string descricao = DetalhesDescricaoTextBox.Text.Trim();
+                string status = (DetalhesStatusComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString();
+                string prioridade = ObterPrioridadeSelecionada();
+                DateTime? dataFechamento = DetalhesDataFechamentoPicker.SelectedDate;
+
+                string connStr = ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
+
+                using (MySqlConnection conn = new MySqlConnection(connStr))
+                {
+                    conn.Open();
+
+                    string updateQuery = @"
+                UPDATE CHAMADOS 
+                SET Titulo = @Titulo,
+                    Descricao = @Descricao,
+                    ChamadoStatus = @ChamadoStatus,
+                    Data_Fechamento = @DataFechamento,
+                    Prioridade = @Prioridade,
+                    ID_SETOR = @IdSetor
+                WHERE ID_CHAMADO = @IdChamado";
+
+                    using (MySqlCommand cmd = new MySqlCommand(updateQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Titulo", titulo);
+                        cmd.Parameters.AddWithValue("@Descricao", descricao);
+                        cmd.Parameters.AddWithValue("@ChamadoStatus", status);
+                        cmd.Parameters.AddWithValue("@DataFechamento", dataFechamento.HasValue ? (object)dataFechamento.Value : DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Prioridade", prioridade);
+                        cmd.Parameters.AddWithValue("@IdSetor", idSetor);
+                        cmd.Parameters.AddWithValue("@IdChamado", _chamadoEmEdicao.IdTicket);
+
+                        int resultado = cmd.ExecuteNonQuery();
+
+                        if (resultado > 0)
+                        {
+                            MessageBox.Show("Chamado atualizado com sucesso!", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
+                            ModalDetalhesChamado.Visibility = Visibility.Collapsed;
+                            CarregarTickets();
+                        }
+                        else
+                        {
+                            MessageBox.Show("Nenhum chamado foi atualizado.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erro ao atualizar chamado: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        private bool SetorExiste(int idSetor)
+        {
+            try
+            {
+                string connStr = ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
+
+                using (MySqlConnection conn = new MySqlConnection(connStr))
+                {
+                    conn.Open();
+                    string query = "SELECT COUNT(1) FROM SETORES WHERE ID_SETOR = @IdSetor";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@IdSetor", idSetor);
+                        long count = (long)cmd.ExecuteScalar();
+                        return count > 0;
+                    }
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        private void ExpandirTicket(Chamado chamado)
+        {
+            // Verifica se o usuário tem permissão para editar este chamado
+            bool podeEditar = VerificarPermissaoEdicao(chamado);
+
+            // Abre o modal de detalhes
+            AbrirModalDetalhes(chamado, podeEditar);
+        }
+        private bool VerificarPermissaoEdicao(Chamado chamado)
+        {
+            if (chamado == null) return false;
+
+            string perfil = _perfilUsuario?.ToLower() ?? "usuário";
+
+            Console.WriteLine($"DEBUG Permissão: Perfil={perfil}, IdClienteChamado={chamado.IdCliente}, IdUsuarioLogado={_idUsuarioLogado}");
+
+            switch (perfil)
+            {
+                case "admin":
+                case "técnico":
+                    Console.WriteLine("DEBUG: Permissão concedida - Admin/Técnico");
+                    return true;
+
+                case "usuário":
+                    bool podeEditar = chamado.IdCliente == _idUsuarioLogado;
+                    Console.WriteLine($"DEBUG: Usuário comum - Pode editar: {podeEditar}");
+                    return podeEditar;
+
+                default:
+                    Console.WriteLine("DEBUG: Permissão negada - Perfil desconhecido");
+                    return false;
+            }
+        }
+        private void AbrirModalDetalhes(Chamado chamado, bool podeEditar = false)
+        {
+            try
+            {
+                _chamadoEmEdicao = chamado;
+                _modoEdicao = false;
+
                 // Preenche os campos com os dados do chamado
                 DetalhesTituloTextBox.Text = chamado.Titulo;
                 DetalhesDescricaoTextBox.Text = chamado.Descricao;
                 DetalhesIdChamadoTextBox.Text = chamado.IdTicket.ToString();
                 DetalhesClienteTextBox.Text = chamado.NomeCliente;
+                DetalhesTecnicoTextBox.Text = chamado.Tecnico;
                 DetalhesDataAberturaPicker.SelectedDate = chamado.DataAbertura;
 
                 // Data de fechamento (pode ser nula)
@@ -725,6 +1126,9 @@ namespace taskflowDesktop.Views
                 // Configura a prioridade
                 ConfigurarPrioridadeDetalhes(chamado.Prioridade);
 
+                // Configura permissões iniciais (modo visualização)
+                ConfigurarModoVisualizacao(podeEditar);
+
                 // Abre o modal
                 ModalDetalhesChamado.Visibility = Visibility.Visible;
             }
@@ -733,27 +1137,83 @@ namespace taskflowDesktop.Views
                 MessageBox.Show($"Erro ao carregar detalhes: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+        private void ConfigurarModoEdicao()
+        {
+            _modoEdicao = true;
 
+            // Atualiza título do modal
+            DetalhesTituloModal.Text = "Editando Chamado";
+
+            // Configura campos como editáveis
+            DetalhesTituloTextBox.IsReadOnly = false;
+            DetalhesTituloTextBox.Background = Brushes.White;
+            DetalhesDescricaoTextBox.IsReadOnly = false;
+            DetalhesDescricaoTextBox.Background = Brushes.White;
+            DetalhesSetorComboBox.IsEnabled = true;
+            DetalhesStatusComboBox.IsEnabled = true;
+            DetalhesDataFechamentoPicker.IsEnabled = true;
+
+            // Habilita prioridades
+            DetalhesPrioridadeBaixa.IsEnabled = true;
+            DetalhesPrioridadeMedia.IsEnabled = true;
+            DetalhesPrioridadeAlta.IsEnabled = true;
+
+            // Configura visibilidade dos botões
+            DetalhesEditarButton.Visibility = Visibility.Collapsed;
+            DetalhesSalvarButton.Visibility = Visibility.Visible;
+            DetalhesCancelarButton.Visibility = Visibility.Visible;
+            DetalhesFecharButton.Visibility = Visibility.Collapsed;
+        }
+        private void ConfigurarModoVisualizacao(bool podeEditar)
+        {
+            _modoEdicao = false;
+
+            // Atualiza título do modal
+            DetalhesTituloModal.Text = "Detalhes do Chamado";
+
+            // Configura campos como somente leitura
+            DetalhesTituloTextBox.IsReadOnly = true;
+            DetalhesTituloTextBox.Background = Brushes.LightGray;
+            DetalhesDescricaoTextBox.IsReadOnly = true;
+            DetalhesDescricaoTextBox.Background = Brushes.LightGray;
+            DetalhesSetorComboBox.IsEnabled = false;
+            DetalhesStatusComboBox.IsEnabled = false;
+            DetalhesDataFechamentoPicker.IsEnabled = false;
+
+            // Habilita/desabilita prioridades
+            DetalhesPrioridadeBaixa.IsEnabled = false;
+            DetalhesPrioridadeMedia.IsEnabled = false;
+            DetalhesPrioridadeAlta.IsEnabled = false;
+
+            // Configura visibilidade dos botões
+            DetalhesEditarButton.Visibility = podeEditar ? Visibility.Visible : Visibility.Collapsed;
+            DetalhesSalvarButton.Visibility = Visibility.Collapsed;
+            DetalhesCancelarButton.Visibility = Visibility.Collapsed;
+            DetalhesFecharButton.Visibility = Visibility.Visible;
+        }
         private void ConfigurarSetorDetalhes(int idSetor)
         {
-            string setor = idSetor switch
-            {
-                1 => "Suporte",
-                2 => "Financeiro",
-                3 => "TI",
-                _ => "Suporte"
-            };
-
+            // Procura o setor pelo ID nos itens do ComboBox
             foreach (ComboBoxItem item in DetalhesSetorComboBox.Items)
             {
-                if (item.Content.ToString() == setor)
+                if (item.Tag != null && (int)item.Tag == idSetor)
+                {
+                    DetalhesSetorComboBox.SelectedItem = item;
+                    return;
+                }
+            }
+
+            // Fallback: procura pelo nome (caso o Tag não esteja disponível)
+            string nomeSetor = ObterNomeSetor(idSetor);
+            foreach (ComboBoxItem item in DetalhesSetorComboBox.Items)
+            {
+                if (item.Content.ToString() == nomeSetor)
                 {
                     DetalhesSetorComboBox.SelectedItem = item;
                     break;
                 }
             }
         }
-
         private void ConfigurarStatusDetalhes(string status)
         {
             foreach (ComboBoxItem item in DetalhesStatusComboBox.Items)
@@ -765,7 +1225,6 @@ namespace taskflowDesktop.Views
                 }
             }
         }
-
         private void ConfigurarPrioridadeDetalhes(string prioridade)
         {
             switch (prioridade.ToLower())
@@ -781,44 +1240,15 @@ namespace taskflowDesktop.Views
                     break;
             }
         }
-
-        private void FecharModalDetalhes_Click(object sender, RoutedEventArgs e)
-        {
-            ModalDetalhesChamado.Visibility = Visibility.Collapsed;
-        }
- 
         private void EditarChamado_Click(object sender, RoutedEventArgs e)
         {
-            // Aqui você pode implementar a funcionalidade de edição
-            MessageBox.Show("Funcionalidade de edição em desenvolvimento...", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+            ConfigurarModoEdicao();
         }
-        private void VerificarECriarDadosNecessarios(MySqlConnection conn)
+        private void CancelarEdicaoChamado_Click(object sender, RoutedEventArgs e)
         {
-            // Verifica setores
-            string verificarSetores = "SELECT COUNT(*) FROM SETORES WHERE ID_SETOR IN (1, 2, 3)";
-            using (MySqlCommand cmdVerificar = new MySqlCommand(verificarSetores, conn))
-            {
-                int countSetores = Convert.ToInt32(cmdVerificar.ExecuteScalar());
-
-                if (countSetores < 3)
-                {
-                    CriarSetoresPadrao(conn);
-                }
-            }
-
-            // Verifica cliente
-            string verificarClientes = "SELECT COUNT(*) FROM CLIENTES WHERE ID_CLIENTE = 1";
-            using (MySqlCommand cmdVerificar = new MySqlCommand(verificarClientes, conn))
-            {
-                int countClientes = Convert.ToInt32(cmdVerificar.ExecuteScalar());
-
-                if (countClientes == 0)
-                {
-                    CriarClientePadrao(conn);
-                }
-            }
+            // Recarrega os dados originais do chamado
+            AbrirModalDetalhes(_chamadoEmEdicao, VerificarPermissaoEdicao(_chamadoEmEdicao));
         }
-
         private void CriarSetoresPadrao(MySqlConnection conn)
         {
             string[] setores = { "Suporte", "Financeiro", "TI" };
@@ -834,49 +1264,137 @@ namespace taskflowDesktop.Views
                 }
             }
         }
-
-        private void CriarClientePadrao(MySqlConnection conn)
-        {
-            string insertCliente = "INSERT INTO CLIENTES (ID_CLIENTE, Nome, Email, Senha_hash) VALUES (1, 'Cliente Padrão', 'cliente@email.com', 'senha')";
-            using (MySqlCommand cmd = new MySqlCommand(insertCliente, conn))
-            {
-                cmd.ExecuteNonQuery();
-            }
-        }
-
         private void BuscarTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(BuscarTextBox.Text))
+            _termoBusca = BuscarTextBox.Text.Trim().ToLower();
+            AplicarFiltros();
+        }
+        private void FiltroStatusComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (FiltroStatusComboBox.SelectedValue != null)
             {
-                // Se estiver vazio, mostra todos os chamados
-                PreencherCards();
+                _filtroStatus = FiltroStatusComboBox.SelectedValue.ToString();
+                AplicarFiltros();
+            }
+        }
+        private void FiltroPrioridadeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (FiltroPrioridadeComboBox.SelectedValue != null)
+            {
+                _filtroPrioridade = FiltroPrioridadeComboBox.SelectedValue.ToString();
+                AplicarFiltros();
+            }
+        }
+        private void BtnTodosChamados_Click(object sender, RoutedEventArgs e)
+        {
+            _mostrarApenasMeusChamados = false;
+            AtualizarEstiloTabs();
+            AplicarFiltros();
+        }
+        private void BtnMeusChamados_Click(object sender, RoutedEventArgs e)
+        {
+            _mostrarApenasMeusChamados = true;
+            AtualizarEstiloTabs();
+            AplicarFiltros();
+        }
+        private void AtualizarEstiloTabs()
+        {
+            if (_mostrarApenasMeusChamados)
+            {
+                // Meus Chamados ativo
+                BtnMeusChamados.Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0));
+                BtnMeusChamados.FontWeight = FontWeights.Bold;
+
+                BtnTodosChamados.Foreground = new SolidColorBrush(Color.FromRgb(119, 119, 119));
+                BtnTodosChamados.FontWeight = FontWeights.Normal;
             }
             else
             {
-                // Filtra os chamados
-                FiltrarChamados(BuscarTextBox.Text.Trim().ToLower());
+                // Todos os Chamados ativo
+                BtnTodosChamados.Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0));
+                BtnTodosChamados.FontWeight = FontWeights.Bold;
+
+                BtnMeusChamados.Foreground = new SolidColorBrush(Color.FromRgb(119, 119, 119));
+                BtnMeusChamados.FontWeight = FontWeights.Normal;
             }
         }
-
-        private void FiltrarChamados(string termoBusca)
+        private void AplicarFiltros()
         {
-            var chamadosFiltrados = chamados.Where(c =>
-                c.Titulo.ToLower().Contains(termoBusca) ||
-                c.Descricao.ToLower().Contains(termoBusca) ||
-                c.NomeCliente.ToLower().Contains(termoBusca) ||
-                c.TicketStatus.ToLower().Contains(termoBusca) ||
-                c.Prioridade.ToLower().Contains(termoBusca) ||
-                c.NomeSetor.ToLower().Contains(termoBusca) ||
-                (c.Tecnico?.ToLower().Contains(termoBusca) ?? false)
-            ).ToList();
-
-            CardsStackPanel.Children.Clear();
-
-            foreach (var chamado in chamadosFiltrados)
+            try
             {
-                var card = CriarCard(chamado);
-                CardsStackPanel.Children.Add(card);
+                // Verifica se há chamados para filtrar
+                if (chamados == null || !chamados.Any())
+                    return;
+
+                var chamadosFiltrados = chamados.AsEnumerable();
+
+                // Aplica filtro de "Meus Chamados" - agora é opcional para todos
+                if (_mostrarApenasMeusChamados)
+                {
+                    // Todos os perfis podem usar o filtro "Meus Chamados"
+                    chamadosFiltrados = chamadosFiltrados.Where(c =>
+                        c.Tecnico?.ToLower() == _usuarioLogado.ToLower() ||
+                        c.IdCliente == _idUsuarioLogado
+                    );
+                }
+
+                // Aplica filtro de busca
+                if (!string.IsNullOrWhiteSpace(_termoBusca))
+                {
+                    chamadosFiltrados = chamadosFiltrados.Where(c =>
+                        (c.Titulo?.ToLower().Contains(_termoBusca) ?? false) ||
+                        (c.Descricao?.ToLower().Contains(_termoBusca) ?? false) ||
+                        (c.NomeCliente?.ToLower().Contains(_termoBusca) ?? false) ||
+                        (c.TicketStatus?.ToLower().Contains(_termoBusca) ?? false) ||
+                        (c.Prioridade?.ToLower().Contains(_termoBusca) ?? false) ||
+                        (c.NomeSetor?.ToLower().Contains(_termoBusca) ?? false) ||
+                        (c.Tecnico?.ToLower().Contains(_termoBusca) ?? false)
+                    );
+                }
+
+                // Aplica filtro de status
+                if (_filtroStatus != "Todos")
+                {
+                    chamadosFiltrados = chamadosFiltrados.Where(c =>
+                        (_filtroStatus == "Aberto" && c.TicketStatus?.ToLower() == "aberto") ||
+                        (_filtroStatus == "Em andamento" && c.TicketStatus?.ToLower() == "em andamento") ||
+                        (_filtroStatus == "Fechado" && c.TicketStatus?.ToLower() == "fechado") ||
+                        (_filtroStatus == "Concluído" && c.TicketStatus?.ToLower() == "concluído")
+                    );
+                }
+
+                // Aplica filtro de prioridade
+                if (_filtroPrioridade != "Todas")
+                {
+                    chamadosFiltrados = chamadosFiltrados.Where(c =>
+                        (_filtroPrioridade == "Baixa" && c.Prioridade?.ToLower() == "baixa") ||
+                        (_filtroPrioridade == "Média" && c.Prioridade?.ToLower() == "média") ||
+                        (_filtroPrioridade == "Alta" && c.Prioridade?.ToLower() == "alta")
+                    );
+                }
+
+                // Cria os cards na tela
+                CardsStackPanel.Children.Clear();
+
+                foreach (var chamado in chamadosFiltrados.ToList())
+                {
+                    var card = CriarCard(chamado);
+                    CardsStackPanel.Children.Add(card);
+                }
+
+                // Atualiza contador
+                AtualizarContadorChamados(chamadosFiltrados.Count());
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao aplicar filtros: {ex.Message}");
+            }
+        }        // Método opcional para mostrar contador
+        private void AtualizarContadorChamados(int quantidade)
+        {
+            string modo = _mostrarApenasMeusChamados ? "Meus Chamados" : "Todos os Chamados";
+            // Você pode exibir isso em um TextBlock se quiser
+            Console.WriteLine($"{modo}: {quantidade} chamados");
         }
     }
 }

@@ -86,20 +86,32 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="CHAMADOS" FontSize="28" FontWeight="Bold" VerticalAlignment="Center"/>
                 <Button Grid.Column="1"
-        Content="+ Novo Chamado"
-        Height="40"
-        Background="#2979FF"
-        Foreground="White"
-        Padding="20,8"
-        FontWeight="Bold"
-        HorizontalAlignment="Right"
-        Click="NovoChamado_Click"/>
+                Content="+ Novo Chamado"
+                Height="40"
+                Background="#2979FF"
+                Foreground="White"
+                Padding="20,8"
+                FontWeight="Bold"
+                HorizontalAlignment="Right"
+                Click="NovoChamado_Click"/>
             </Grid>
 
             <!-- Tabs -->
             <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10">
-                <Button Content="Todos os Chamados" Background="Transparent" BorderThickness="0" Foreground="#000" FontWeight="Bold" Margin="0,0,20,0"/>
-                <Button Content="Meus Chamados" Background="Transparent" BorderThickness="0" Foreground="#777"/>
+                <Button x:Name="BtnTodosChamados" 
+                    Content="Todos os Chamados" 
+                    Background="Transparent" 
+                    BorderThickness="0" 
+                    Foreground="#000" 
+                    FontWeight="Bold" 
+                    Margin="0,0,20,0"
+                    Click="BtnTodosChamados_Click"/>
+                <Button x:Name="BtnMeusChamados" 
+                    Content="Meus Chamados" 
+                    Background="Transparent" 
+                    BorderThickness="0" 
+                    Foreground="#777"
+                    Click="BtnMeusChamados_Click"/>
             </StackPanel>
             <Border Grid.Row="2" Margin="0,30,0,0" BorderBrush="#DDD" BorderThickness="0,0,0,1"/>
 
@@ -109,34 +121,65 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="150"/>
                     <ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
+
                 <!-- Botão remover -->
                 <Button Content="Remover" 
-                    Style="{StaticResource MaterialDesignOutlinedButton}"
-                    Grid.Column="0" 
-                    Margin="0,20,10,4" 
-                    Click="Button_Click_2"
-                    Foreground="#F44336"
-                    BorderBrush="#F44336"/>
+                Style="{StaticResource MaterialDesignOutlinedButton}"
+                Grid.Column="0" 
+                Margin="0,20,10,4" 
+                Click="Button_Click_2"
+                Foreground="#F44336"
+                BorderBrush="#F44336"/>
+
                 <!-- Filtro de Status -->
                 <StackPanel Grid.Column="1" Margin="0,0,10,0">
                     <TextBlock Text="Status" FontWeight="Bold" Foreground="#555" Margin="2,0,0,3"/>
-                    <ComboBox Width="140" Height="33" Style="{StaticResource MaterialDesignOutlinedComboBox}">
-                        <ComboBoxItem Content="Lido"/>
-                        <ComboBoxItem Content="Não lido"/>
+                    <ComboBox x:Name="FiltroStatusComboBox"
+                      Width="140" 
+                      Height="33"
+                      Padding="8"
+                      SelectedValuePath="Content"
+                      SelectionChanged="FiltroStatusComboBox_SelectionChanged"
+                      BorderBrush="#DDD"
+                      BorderThickness="1"
+                      Background="White">
+                        <ComboBoxItem Content="Todos" IsSelected="True"/>
+                        <ComboBoxItem Content="Aberto"/>
                         <ComboBoxItem Content="Em andamento"/>
+                        <ComboBoxItem Content="Fechado"/>
                         <ComboBoxItem Content="Concluído"/>
                     </ComboBox>
                 </StackPanel>
+
                 <!-- Filtro de Prioridade -->
                 <StackPanel Grid.Column="2">
                     <TextBlock Text="Prioridade" FontWeight="Bold" Foreground="#555" Margin="2,0,0,3"/>
-                    <ComboBox Width="140" Height="33" Style="{StaticResource MaterialDesignOutlinedComboBox}">
+                    <ComboBox x:Name="FiltroPrioridadeComboBox"
+                      Width="140" 
+                      Height="33"
+                      Padding="6"
+                      SelectedValuePath="Content"
+                      SelectionChanged="FiltroPrioridadeComboBox_SelectionChanged"
+                      BorderBrush="#DDD"
+                      BorderThickness="1"
+                      Background="White">
+                        <ComboBoxItem Content="Todas" IsSelected="True"/>
                         <ComboBoxItem Content="Baixa"/>
                         <ComboBoxItem Content="Média"/>
                         <ComboBoxItem Content="Alta"/>
                     </ComboBox>
                 </StackPanel>
+
+                <!-- Botão Limpar Filtros -->
+                <Button Content="Limpar Filtros" 
+                Grid.Column="3" 
+                Margin="10,20,0,4" 
+                Click="LimparFiltros_Click"
+                Style="{StaticResource MaterialDesignOutlinedButton}"
+                Foreground="#666"
+                BorderBrush="#666"/>
             </Grid>
 
             <!-- Cabeçalho das colunas -->
@@ -298,18 +341,17 @@
 
                         <StackPanel Grid.Row="0" Grid.Column="1" Margin="10,0,0,15">
                             <TextBlock Text="Setor" FontWeight="Bold" Foreground="#555"/>
-
-                            <ComboBox x:Name="SetorComboBox"
-                                Style="{StaticResource MaterialDesignOutlinedComboBox}"
-                                Margin="0,5,0,0"
-                                Padding="8,6"
-                                MinHeight="44"
-                                FontSize="14"
-                                VerticalContentAlignment="Center">
-                                <ComboBoxItem Content="Suporte"/>
-                                <ComboBoxItem Content="Financeiro"/>
-                                <ComboBoxItem Content="TI"/>
-                            </ComboBox>
+                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="10,0,0,15">
+                                <ComboBox x:Name="SetorComboBox"
+                                  Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                  Margin="0,5,0,0"
+                                  Padding="8,6"
+                                  MinHeight="44"
+                                  FontSize="14"
+                                  VerticalContentAlignment="Center">
+                                    <!-- Itens serão carregados do banco de dados -->
+                                </ComboBox>
+                            </StackPanel>
                         </StackPanel>
 
                         <!-- Linha 2: Status e Prioridade -->
@@ -426,7 +468,8 @@
             HorizontalAlignment="Center">
 
                 <StackPanel>
-                    <TextBlock Text="Detalhes do Chamado"
+                    <TextBlock x:Name="DetalhesTituloModal"
+                       Text="Detalhes do Chamado"
                        FontSize="26"
                        FontWeight="Bold"
                        Margin="0,0,0,25"/>
@@ -439,15 +482,11 @@
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
-                            <!-- Título e Setor -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Status e Prioridade -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Datas -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Descrição -->
                             <RowDefinition Height="Auto"/>
-                            <!-- ID do Chamado -->
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <!-- Linha 1: Título e Setor -->
@@ -474,9 +513,7 @@
                             FontSize="14"
                             VerticalContentAlignment="Center"
                             IsEnabled="False">
-                                <ComboBoxItem Content="Suporte"/>
-                                <ComboBoxItem Content="Financeiro"/>
-                                <ComboBoxItem Content="TI"/>
+                                <!-- Itens serão carregados do banco de dados -->
                             </ComboBox>
                         </StackPanel>
 
@@ -569,13 +606,28 @@
                             IsReadOnly="True"
                             Background="#F5F5F5"/>
                         </StackPanel>
+
+                        <!-- Linha 6: Técnico Responsável (novo campo) -->
+                        <StackPanel Grid.Row="5" Grid.ColumnSpan="2" Margin="0,10,0,0">
+                            <TextBlock Text="Técnico Responsável" FontWeight="Bold" Foreground="#555"/>
+                            <TextBox x:Name="DetalhesTecnicoTextBox"
+                            Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                            Margin="0,5,0,0"
+                            Padding="8,6"
+                            MinHeight="44"
+                            FontSize="14"
+                            VerticalContentAlignment="Center"
+                            IsReadOnly="True"
+                            Background="#F5F5F5"/>
+                        </StackPanel>
                     </Grid>
 
                     <!-- Botões -->
                     <StackPanel Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Margin="0,20,0,0">
-                        <Button Content="Fechar"
+                        <Button x:Name="DetalhesFecharButton"
+                        Content="Fechar"
                         Margin="0,0,10,0"
                         Background="Transparent"
                         BorderBrush="#999"
@@ -583,12 +635,32 @@
                         Width="100"
                         Height="40"
                         Click="FecharModalDetalhes_Click"/>
-                        <Button Content="Editar"
+                        <Button x:Name="DetalhesEditarButton"
+                        Content="Editar"
                         Background="#2979FF"
                         Foreground="White"
                         Width="100"
                         Height="38"
                         Click="EditarChamado_Click"/>
+                        <Button x:Name="DetalhesSalvarButton"
+                        Content="Salvar"
+                        Background="#4CAF50"
+                        Foreground="White"
+                        Width="100"
+                        Height="38"
+                        Click="SalvarEdicaoChamado_Click"
+                        Visibility="Collapsed"
+                        Margin="10,0,0,0"/>
+                        <Button x:Name="DetalhesCancelarButton"
+                        Content="Cancelar"
+                        Margin="10,0,0,0"
+                        Background="Transparent"
+                        BorderBrush="#999"
+                        Foreground="#555"
+                        Width="100"
+                        Height="40"
+                        Click="CancelarEdicaoChamado_Click"
+                        Visibility="Collapsed"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
