@@ -1,13 +1,14 @@
-﻿using System;
+﻿using MySql.Data.MySqlClient;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
-using MySql.Data.MySqlClient;
-using taskflowDesktop.Models;
 using System.Windows.Controls.Primitives;
-using System.Linq;
+using System.Windows.Media;
+using taskflowDesktop.Models;
+using static taskflowDesktop.Views.Usuarios;
 
 
 namespace taskflowDesktop.Views
@@ -45,11 +46,39 @@ namespace taskflowDesktop.Views
                 Console.WriteLine($"Usuário logado: {_usuarioLogado} (ID: {_idUsuarioLogado})");
             };
         }
+
+        private void AbrirUser(object sender, RoutedEventArgs e)
+        {
+            // Verifica se o usuário é admin
+            if (_perfilUsuario?.ToLower() != "admin")
+            {
+                MessageBox.Show("Apenas administradores podem acessar a gestão de usuários.",
+                              "Acesso Negado",
+                              MessageBoxButton.OK,
+                              MessageBoxImage.Warning);
+                return;
+            }
+
+            // Só abre a tela se for admin
+            Usuarios usuariosWindow = new Usuarios(_usuarioLogado, _idUsuarioLogado, _perfilUsuario);
+            usuariosWindow.Show();
+            this.Close();
+        }
         private void ConfigurarPermissoes()
         {
             // Todos os perfis podem ver ambas as tabs
             BtnTodosChamados.Visibility = Visibility.Visible;
             BtnMeusChamados.Visibility = Visibility.Visible;
+
+            // Configura visibilidade do botão de usuários na sidebar
+            if (_perfilUsuario?.ToLower() != "admin")
+            {
+                BtnUsuariosSidebar.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                BtnUsuariosSidebar.Visibility = Visibility.Visible;
+            }
 
             // Não força mostrar apenas os próprios chamados para usuários comuns
             _mostrarApenasMeusChamados = false;
@@ -478,6 +507,7 @@ namespace taskflowDesktop.Views
                 CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(10),
                 Margin = new Thickness(0, 0, 0, 10),
+                Height = 70,
                 Tag = chamado.IdTicket
             };
 
